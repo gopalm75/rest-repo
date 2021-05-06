@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="409be3b2-40e7-400d-b48d-3977c86efe10" basePath="${http.bpath}">
+		<http:listener-connection host="${http.host}" port="${http.port}" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="aa4334e7-14eb-43ff-9282-78be6fd7121a" >
+		<db:oracle-connection host="${db.host}" user="${db.uname}" password="${secure::db.pwd}" instance="${db.sid}" port="${db.port}"/>
+	</db:config>
+	<configuration-properties doc:name="Configuration properties" doc:id="18dcc145-b765-441c-a005-040e61ff023a" file="config.properties" />
+	<configuration-properties doc:name="Configuration properties" doc:id="3fb8140e-6abd-4671-b016-75dfa7e04501" file="config-${env}.yaml" />
+	<global-property doc:name="Global Property" doc:id="1c54939a-c750-4204-992e-ae112e7453ed" name="env" value="local" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="2b55c8e3-233d-4063-a8b2-57590ff8748c" file="secure-config-${env}.yaml" key="${mule.key}" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<flow name="GET-students" doc:id="4dc67c1e-0f1e-49c9-9d8b-8757aa4d2623" >
+		<http:listener doc:name="Listener" doc:id="4a75995f-bdaf-4f3b-9891-b34513709bb8" config-ref="HTTP_Listener_config" path="/students" allowedMethods="GET"/>
+		<logger level="INFO" doc:name="Logger" doc:id="e6f78b8e-7e93-4c15-a9fc-dfc288ec056d" message="------------------GET students flow started------------------------"/>
+		<logger level="INFO" doc:name="Logger" doc:id="45564d4a-3097-42de-a3ca-1121669e1df0" message="${secure::db.pwd}" />
+		<logger level="INFO" doc:name="Logger" doc:id="c08919c9-0fdc-4222-b335-1f86aa9b3fb1" message="#[p('secure::db.pwd')]"/>
+		<logger level="INFO" doc:name="Logger" doc:id="a1873d59-01ef-4fd2-9ab9-3f991aff946e" message="${secure::name}"/>
+		<set-variable value="#[attributes.queryParams.format]" doc:name="Set Variable" doc:id="84935d87-8b9d-40e2-9c0b-a30ca878a151" variableName="respFormat"/>
+		<try doc:name="Try" doc:id="71d69e0d-aeb7-43c3-8231-9caaa375a545" >
+			<db:select doc:name="Select" doc:id="02dd8bcf-c2dc-44b7-a044-210a5c9c7098" config-ref="Database_Config">
+			<db:sql><![CDATA[select sno,sname,m1,m2,m3 from students]]></db:sql>
+		</db:select>
+			<logger level="INFO" doc:name="Logger" doc:id="d95e2b11-e6a4-4fd8-85dc-79a76c7d9298" />
+			<error-handler>
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="c91916ab-f730-4d34-8dc7-6b2322291a48" type="DB:BAD_SQL_SYNTAX">
+					<logger level="INFO" doc:name="Logger" doc:id="130cb950-f7ba-42f6-9cd5-0475358ed89a" message="-------event level  error OEC--------------"/>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<choice doc:name="Choice" doc:id="71a07bbe-1ca9-4933-b6a7-2eb6de173d57" >
+			<when expression="#[vars.respFormat =='json']">
+				<ee:transform doc:name="Transform Message" doc:id="628c6b9a-f880-4818-9c59-5a71e1ad3d14">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	sno: payload01.SNO default 0,
+	sname: payload01.SNAME default "",
+	m1: payload01.M1 default 0,
+	m2: payload01.M2 default 0
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="37c87ef7-fbb2-4a42-a6ad-e0ce6d4bf0c9" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+---
+{
+	students: {
+		(payload map ( payload01 , indexOfPayload01 ) -> {
+			student: {
+				sno: payload01.SNO,
+				sname: payload01.SNAME,
+				m1: payload01.M1,
+				m2: payload01.M2
+			}
+		})
+	}
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="ad6cf521-bf8c-4856-8096-212248bb8a25" message="------------------GET students flow ended------------------------"/>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="1f0e50dc-3664-43ba-9849-c8e4fc993880" type="ANY">
+				<logger level="INFO" doc:name="Logger" doc:id="7101dcf3-a1d1-4d24-a9ac-76dc44e02df3" message="----------------flow level OEC -----------------"/>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<flow name="POST-students" doc:id="330ed233-4aea-4993-8b4d-26dd7edd056d" >
+		<http:listener doc:name="Listener" doc:id="a4c2327e-6697-42aa-aea6-e7f9b1b142fc" config-ref="HTTP_Listener_config" path="/students" allowedMethods="POST"/>
+		<logger level="INFO" doc:name="Logger" doc:id="636d00b9-ba8a-4f7d-9dcc-c46027c109d0" message="------------------POST students flow started------------------------"/>
+		<set-variable value="#[attributes.headers.'content-type']" doc:name="Set Variable" doc:id="dd7fef14-6062-4654-9c72-b09acb278c8d" variableName="format"/>
+		<choice doc:name="Choice" doc:id="0cf09f2d-6e77-4c8a-84fc-cf23d5055ac7" >
+			<when expression="#[vars.format=='application/xml']">
+				<ee:transform doc:name="Transform Message" doc:id="cc3cc6c5-e2c2-4799-8590-fb569709cd6a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+---
+{ 
+	"status" : "students record created {but not really}"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="94c370c4-a38f-431f-b2fd-0f441c67b171">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ 
+	"status" : "students record created {but not really}"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="8941a7dd-971c-4eff-b676-74f76b7264ee" message="------------------POST students flow ended------------------------"/>
+	</flow>
+	<flow name="GET-studentsbyID" doc:id="053c2a0e-3a79-4417-983b-75c89e91fc63" >
+		<http:listener doc:name="Listener" doc:id="62c4cf7a-9ecc-44f1-adeb-92e5c50818ec" config-ref="HTTP_Listener_config" path="/students/{sno}" allowedMethods="GET"/>
+		<logger level="INFO" doc:name="Logger" doc:id="07c491fc-3abc-4901-a4b8-df4bc17cd506" message="------------------GET students by id flow started------------------------"/>
+		<set-variable value="#[attributes.uriParams.sno]" doc:name="Set Variable" doc:id="13421b58-65e3-4b6b-bbe8-5ecf890cb1e5" variableName="studNum"/>
+		<db:select doc:name="Select" doc:id="a31bb264-56f5-4281-83b0-70af669ce3df" config-ref="Database_Config">
+			<db:sql ><![CDATA[select sno,sname,m1,m2 from students where sno=:sno]]></db:sql>
+			<db:input-parameters ><![CDATA[{
+  sno : vars.studNum
+}]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="3e73cb65-edf1-4692-987e-390c5075dab2" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	sno: payload.SNO default 0,
+	sname: payload.SNAME default "",
+	m1: payload.M1 default 0,
+	m2: payload.M2 default 0
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="f1c7783b-fc37-48a8-82e4-8b3352b178c2" message="------------------GET students by id flow ended------------------------"/>
+	</flow>
+	<flow name="PUT-students-by-ID" doc:id="1ce46a96-ff5c-4abc-89a1-9a4a72882705" >
+		<http:listener doc:name="Listener" doc:id="84581cc8-e311-4941-aecf-bdf43302f5f2" config-ref="HTTP_Listener_config" path="/students/{sno}" allowedMethods="PUT"/>
+		<logger level="INFO" doc:name="Logger" doc:id="5d8f40a9-56a7-4f29-bd26-4d6b74526f4e" message="-------------PUT students by ID flow started------------------------"/>
+		<set-variable value="#[attributes.uriParams.sno]" doc:name="Set Variable" doc:id="52d5ab40-67e6-43b7-b462-300305725aa7" variableName="studNum"/>
+		<ee:transform doc:name="Transform Message" doc:id="d3cf4c2c-6432-4ecc-84a8-d460dfc73ab5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+ sno: vars.studNum,
+ status : "updated successfully!!"
+ 
+ }]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="930e1ea9-cdf8-4f07-9b4d-6fe29054c1a7" message="-------------PUT students by ID flow ended------------------------"/>
+	</flow>
+</mule>

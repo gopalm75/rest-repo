@@ -1,0 +1,7 @@
+http:
+  host: "localhost"
+  port: "8081"
+  bpath: "/api"
+  
+  
+env: "dev"

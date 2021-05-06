@@ -1,0 +1,14 @@
+<students>
+  <student>
+   <sno>1</sno>
+   <sname>sone</sname>
+   <m1>10</m1>7
+   <m2>20</m2>
+  </student>
+  <student>
+     <sno>2</sno>
+     <sname>stwo</sname>
+     <m1>15</m1>7
+     <m2>19</m2>
+  </student>
+</students>

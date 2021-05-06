@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="students-json" format="json">
+      <types:shape format="weave" example="examples/students.json"><![CDATA[%dw 2.0
+
+type students_json = Array<{|  sno: Number {"typeId": "int"},   sname: String,   m1: Number {"typeId": "int"},   m2: Number {"typeId": "int"}|}> {"example": "[{\\\"sno\\\":101,\\\"sname\\\":\\\"s-101\\\",\\\"m1\\\":24,\\\"m2\\\":21},{\\\"sno\\\":102,\\\"sname\\\":\\\"s-102\\\",\\\"m1\\\":22,\\\"m2\\\":28},{\\\"sno\\\":103,\\\"sname\\\":\\\"s-103\\\",\\\"m1\\\":22,\\\"m2\\\":27},{\\\"sno\\\":104,\\\"sname\\\":\\\"s-104\\\",\\\"m1\\\":24,\\\"m2\\\":23},{\\\"sno\\\":105,\\\"sname\\\":\\\"s-105\\\",\\\"m1\\\":25,\\\"m2\\\":26}]"}
+
+]]></types:shape>
+    </types:type>
+    <types:type name="students-xml" format="xml">
+      <types:example format="xml" element="students" location="examples/students.xml"/>
+    </types:type>
+    <types:type name="student-json" format="json">
+      <types:shape format="weave" example="examples/student.json"><![CDATA[%dw 2.0
+
+type student_json = {|
+  sno: Number {"typeId": "int"}, 
+  sname: String, 
+  m1: Number {"typeId": "int"}, 
+  m2: Number {"typeId": "int"}
+|} {"example": "{\\\"sno\\\":1,\\\"sname\\\":\\\"gopal\\\",\\\"m1\\\":24,\\\"m2\\\":21}"}
+
+]]></types:shape>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#628c6b9a-f880-4818-9c59-5a71e1ad3d14">
+    <types:processor-declaration>
+      <types:output-event>
+        <types:message>
+          <types:payload type="students-json"/>
+        </types:message>
+      </types:output-event>
+    </types:processor-declaration>
+  </types:enrichment>
+  <types:enrichment select="#37c87ef7-fbb2-4a42-a6ad-e0ce6d4bf0c9">
+    <types:processor-declaration>
+      <types:output-event>
+        <types:message>
+          <types:payload type="students-xml"/>
+        </types:message>
+      </types:output-event>
+    </types:processor-declaration>
+  </types:enrichment>
+  <types:enrichment select="#3e73cb65-edf1-4692-987e-390c5075dab2">
+    <types:processor-declaration>
+      <types:output-event>
+        <types:message>
+          <types:payload type="student-json"/>
+        </types:message>
+      </types:output-event>
+    </types:processor-declaration>
+  </types:enrichment>
+</types:mule>
